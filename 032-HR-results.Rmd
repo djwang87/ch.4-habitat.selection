@@ -5,7 +5,20 @@ editor_options:
 ---
 ## Results
 
-1. Overall HR sizes between sites: MCP + KDE
+1. Overall 100% HR sizes between sites: MCP + KDE
 2. HR sizes between sexes: MCP + KDE
 3. HR area size plots over 24h: MCP + KDE
 4. 
+
+
+Aebischer et al. recommend to study habitat selection at two levels: (i) selection of the home range within the study area, and (ii) selection of the relocations within the home range. The first level is termed second-order habitat selection on Johnson's scale (1980), and the second one, third-order habitat selection.
+
+
+
+ because MCP can be used to describe the extent of distribution of locations, as such it could be
+ 
+ 
+ MCP is also biased and over looks many gaps which may bias the habitat selection process
+ so, locoh is used because it is able to define boundaries etc which makes it a better estimator to use to examine habitat preference.
+ 
+ 2nd order
