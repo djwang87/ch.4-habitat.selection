@@ -1,0 +1,20 @@
+---
+title: "Home Range Analysis"
+author: "DJ Wang"
+site: bookdown::bookdown_site
+documentclass: book
+output:
+  bookdown::gitbook: default
+  bookdown::pdf_book: default
+---
+
+```{r setup, include=FALSE}
+list.of.packages <- c("lubridate", "dplyr", "ggplot2","randomForest", "corrplot", "knitr", "glmm", "tinytex","xtable","ggcorrplot","stargazer","kableExtra", "captioner","formattable", "reshape2", "lme4", "e1071","zoo", "animalTrack", "janitor", 'glmm','lme4', 'MuMIn','amt', 'scales', "bookdown", "tidyr", 'Hmisc', 'sf') 
+
+new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+if (length(new.packages)) install.packages(unlist(new.packages))
+lapply(list.of.packages, require, character.only = T)
+
+options(tibble.print_max = Inf) # To show all rows
+options(tibble.width = Inf) # To show all columns; Inf controls value
+```

@@ -1,0 +1,279 @@
+---
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+## Methods
+
+- get all the raw data
+- average the gps fixes somehow
+- find 95% MCP
+- find 50% MCP
+- find distance from centroid (for next chapter's circ rhythm analysis)
+- find kde (read up about this btw, what about smoothing parameters etc)
+- 
+
+```{r functions list}
+longlat.conver = function(df) { # func for producing dropping sf obj into df
+  df.a = st_drop_geometry(df)
+  df.b = st_coordinates(df)
+  df.b = as.data.frame(df.b)
+  df.c = cbind(df.a, df.b)
+  return(df.c)
+}
+```
+ 
+```{r reading raw data}
+load("gps-data.rda")
+males = c('beta', 'chua', 'donjuan', 'harry', 'sashbro', 'comet', 'rude', 'wang')
+data = data %>%
+  mutate(sex = as.factor(ifelse (dog %in% males, "male", "female")),
+         hour = hour(sg.time))
+
+sbwr = data %>%
+  filter(site == "sbwr")
+
+sbwr.coords = st_as_sf(sbwr, coords = c("longitude", "latitude"), crs = "+proj=longlat +datum=WGS84")
+sbwr.coords = st_transform(sbwr.coords, CRS("+proj=utm +north +zone=48 +ellps=WGS84"))
+sbwr.coords = longlat.conver(sbwr.coords)
+
+ubin = data %>%
+  filter(site == "ubin")
+
+ubin.coords = st_as_sf(ubin, coords = c("longitude", "latitude"), crs = "+proj=longlat +datum=WGS84")
+ubin.coords = st_transform(ubin.coords, CRS("+proj=utm +north +zone=48 +ellps=WGS84"))
+ubin.coords = longlat.conver(ubin.coords)
+
+
+data.coords = st_as_sf(data, coords = c("longitude", "latitude"), crs = "+proj=longlat +datum=WGS84")
+data.coords = st_transform(data.coords, CRS("+proj=utm +north +zone=48 +ellps=WGS84"))
+data.coords = longlat.conver(data.coords)
+
+```
+
+
+```{r hourly HR sizes}
+hour.tr = make_track(data.coords, X, Y, sg.time, dog = dog, site = site, sex = sex, hour = hour,crs = CRS("+proj=utm +north +zone=48 +ellps=WGS84"))
+# Track is defined by dog, site, sex and hours
+
+nest.data = hour.tr %>% # Creating list
+  nest(data = c(x_, y_,t_))
+
+hr1 <- nest.data %>% # estimators from list
+  mutate(hr_mcp = map(data, hr_mcp),
+         hr_kde = map(data, hr_kde),
+         hr_locoh = map(data, ~ hr_locoh(., n = ceiling(sqrt(nrow(.)))))
+)
+
+hr2 <- hr1 %>% # Convert to long format
+  dplyr::select(-data) %>%
+  pivot_longer(hr_mcp:hr_locoh, names_to = "estimator", values_to = "hr")
+
+hr2.area <- hr2 %>% # un-nest the data and get hr sizes
+mutate(hr_area = map(hr, hr_area)) %>%
+unnest(cols = hr_area)
+```
+
+```{r ggplot distances}
+# More useful in circadian rhythm chapter than here
+
+data.results = hr2.area %>% # remove the list column
+  dplyr::select(-hr) %>%
+  mutate(area.km = area/1000000)
+
+(ggplot(data = data.results, aes(x = hour, y = area.km, color = sex, shape = sex)) +
+  geom_jitter(position=position_dodge(1.0), size = 1.5) + 
+  #stat_summary(fun.data = 'mean_cl_normal', geom = "pointrange", color = "red") +
+  facet_grid(site ~ estimator, scales = "free") +
+  scale_x_continuous(name = 'Hours [h]') +
+  scale_y_continuous(name = expression(paste("HRS [km"^"2"*"]"))) #To have superscripts in axis
+)
+
+# mean_cl_normal( ) is intended for use with stat_summary. It calculates
+# sample mean and lower and upper Gaussian confidence limits based on the 
+# t-distribution
+
+```
+
+
+```{r sbwr dog-specific polyshapes}
+sites.tr = make_track(data.coords, X, Y, sg.time, site = site, sex = sex, dog = dog,
+                      crs = CRS("+proj=utm +north +zone=48 +ellps=WGS84"))
+
+# SBWR plots
+sbwr.tr = sites.tr %>% 
+  filter(site == "sbwr")
+
+nest.sbwr.tr = sbwr.tr %>% # nesting x_, y_ and t_ in lists
+  nest(data = c(x_, y_,t_))
+  
+nest.sbwr.hr = nest.sbwr.tr %>% # estimators from list
+  mutate(hr_mcp = map(data, hr_mcp, levels = c(0.5, 0.95)),
+         hr_kde = map(data, hr_kde, h = hr_kde_ref(sbwr.tr), levels = c(0.5, 0.95)),
+         hr_locoh = map(data, ~ hr_locoh(., n = ceiling(sqrt(nrow(.)))),  levels = seq(0.5, 0.95))
+)  
+  
+
+# plot(nest.sbwr.hr[[5]][[10]]) # dog 1 MCP
+# plot(nest.sbwr.hr[[6]][[10]]) # dog 1 KDE
+# plot(nest.sbwr.hr[[7]][[10]]) # dog 1 LoCoH
+
+# Sorting all shapefiles by dogs and estimator used
+
+sash.1 = hr_isopleths(nest.sbwr.hr[[5]][[1]])
+sash.2 = hr_isopleths(nest.sbwr.hr[[6]][[1]])
+sash.3 = hr_isopleths(nest.sbwr.hr[[7]][[1]])
+sash2.shape = rbind(sash.1, sash.2, sash.3)
+sash2.shape$dog = "sash2"
+sash2.shape$estimator = c("mcp", "mcp", "kde", "kde", "locoh")
+
+xl.1 = hr_isopleths(nest.sbwr.hr[[5]][[2]])
+xl.2 = hr_isopleths(nest.sbwr.hr[[6]][[2]])
+xl.3 = hr_isopleths(nest.sbwr.hr[[7]][[2]])
+xl.shape = rbind(xl.1, xl.2, xl.3)
+xl.shape$dog = "xl"
+xl.shape$estimator = c("mcp", "mcp", "kde", "kde", "locoh")
+
+skit.1 = hr_isopleths(nest.sbwr.hr[[5]][[3]])
+skit.2 = hr_isopleths(nest.sbwr.hr[[6]][[3]])
+skit.3 = hr_isopleths(nest.sbwr.hr[[7]][[3]])
+skit.shape = rbind(skit.1, skit.2, skit.3)
+skit.shape$dog = "skit"
+skit.shape$estimator = c("mcp", "mcp", "kde", "kde", "locoh")
+
+beta.1 = hr_isopleths(nest.sbwr.hr[[5]][[4]])
+beta.2 = hr_isopleths(nest.sbwr.hr[[6]][[4]])
+beta.3 = hr_isopleths(nest.sbwr.hr[[7]][[4]])
+beta.shape = rbind(beta.1, beta.2, beta.3)
+beta.shape$dog = "beta"
+beta.shape$estimator = c("mcp", "mcp", "kde", "kde", "locoh")
+
+sashmum.1 = hr_isopleths(nest.sbwr.hr[[5]][[5]])
+sashmum.2 = hr_isopleths(nest.sbwr.hr[[6]][[5]])
+sashmum.3 = hr_isopleths(nest.sbwr.hr[[7]][[5]])
+sashmum.shape = rbind(sashmum.1, sashmum.2, sashmum.3)
+sashmum.shape$dog = "sashmum"
+sashmum.shape$estimator = c("mcp", "mcp", "kde", "kde", "locoh")
+
+sally.1 = hr_isopleths(nest.sbwr.hr[[5]][[6]])
+sally.2 = hr_isopleths(nest.sbwr.hr[[6]][[6]])
+sally.3 = hr_isopleths(nest.sbwr.hr[[7]][[6]])
+sally.shape = rbind(sally.1, sally.2, sally.3)
+sally.shape$dog = "sally"
+sally.shape$estimator = c("mcp", "mcp", "kde", "kde", "locoh")
+
+harry.1 = hr_isopleths(nest.sbwr.hr[[5]][[7]])
+harry.2 = hr_isopleths(nest.sbwr.hr[[6]][[7]])
+harry.3 = hr_isopleths(nest.sbwr.hr[[7]][[7]])
+harry.shape = rbind(harry.1, harry.2, harry.3)
+harry.shape$dog = "harry"
+harry.shape$estimator = c("mcp", "mcp", "kde", "kde", "locoh")
+
+donjuan.1 = hr_isopleths(nest.sbwr.hr[[5]][[8]])
+donjuan.2 = hr_isopleths(nest.sbwr.hr[[6]][[8]])
+donjuan.3 = hr_isopleths(nest.sbwr.hr[[7]][[8]])
+donjuan.shape = rbind(donjuan.1, donjuan.2, donjuan.3)
+donjuan.shape$dog = "donjuan"
+donjuan.shape$estimator = c("mcp", "mcp", "kde", "kde", "locoh")
+
+sashbro.1 = hr_isopleths(nest.sbwr.hr[[5]][[9]])
+sashbro.2 = hr_isopleths(nest.sbwr.hr[[6]][[9]])
+sashbro.3 = hr_isopleths(nest.sbwr.hr[[7]][[9]])
+sashbro.shape = rbind(sashbro.1, sashbro.2, sashbro.3)
+sashbro.shape$dog = "sashbro"
+sashbro.shape$estimator = c("mcp", "mcp", "kde", "kde", "locoh")
+
+chua.1 = hr_isopleths(nest.sbwr.hr[[5]][[10]])
+chua.2 = hr_isopleths(nest.sbwr.hr[[6]][[10]])
+chua.3 = hr_isopleths(nest.sbwr.hr[[7]][[10]])
+chua.shape = rbind(chua.1, chua.2, chua.3)
+chua.shape$dog = "chua"
+chua.shape$estimator = c("mcp", "mcp", "kde", "kde", "locoh")
+
+sbwr.shapes = rbind(sash2.shape, xl.shape, skit.shape, beta.shape, sashmum.shape, sally.shape, harry.shape, donjuan.shape, sashbro.shape, chua.shape)
+```
+
+```{r plotting sbwr.shapes}
+sbwr = brick('2020-07-16_sbwr_raster.grd')
+sbwr.sf = st_read(file.choose()) # get shapefile
+
+sbwr.95 = sbwr.shapes %>%
+  filter(estimator == "locoh")
+sbwr.95$dog = as.factor(sbwr.95$dog)
+
+plot(sbwr$habitat)
+plot(sbwr.95, add = T, fill = NA)
+
+ggplot() + 
+  geom_sf(data = sbwr.sf, aes(fill = habitat)) + 
+  geom_sf(data = sbwr.95) +
+  facet_wrap(dog ~.) + 
+  theme_classic()
+```
+
+
+```{r ubin dog-specific shapes}
+
+# Ubin plots
+ubin.tr = sites.tr %>% 
+  filter(site == "ubin")
+
+nest.ubin.tr = ubin.tr %>% # nesting x_, y_ and t_ in lists
+  nest(data = c(x_, y_,t_))
+  
+nest.ubin.hr = nest.ubin.tr %>% # estimators from list
+  mutate(hr_mcp = map(data, hr_mcp, levels = c(0.5, 0.95)),
+         hr_kde = map(data, hr_kde, h = hr_kde_ref(ubin.tr), levels = c(0.5, 0.95)),
+         hr_locoh = map(data, ~ hr_locoh(., n = ceiling(sqrt(nrow(.)))),  levels = seq(0.5, 0.95))
+) 
+
+comet.1 = hr_isopleths(nest.ubin.hr[[5]][[1]])
+comet.2 = hr_isopleths(nest.ubin.hr[[6]][[1]])
+comet.3 = hr_isopleths(nest.ubin.hr[[7]][[1]])
+comet.shape = rbind(comet.1, comet.2, comet.3)
+comet.shape$dog = "comet"
+comet.shape$estimator = c("mcp", "mcp", "kde", "kde", "locoh")
+
+wang.1 = hr_isopleths(nest.ubin.hr[[5]][[2]])
+wang.2 = hr_isopleths(nest.ubin.hr[[6]][[2]])
+wang.3 = hr_isopleths(nest.ubin.hr[[7]][[2]])
+wang.shape = rbind(wang.1, wang.2, wang.3)
+wang.shape$dog = "wang"
+wang.shape$estimator = c("mcp", "mcp", "kde", "kde", "locoh")
+
+mei.1 = hr_isopleths(nest.ubin.hr[[5]][[3]])
+mei.2 = hr_isopleths(nest.ubin.hr[[6]][[3]])
+mei.3 = hr_isopleths(nest.ubin.hr[[7]][[3]])
+mei.shape = rbind(mei.1, mei.2, mei.3)
+mei.shape$dog = "mei"
+mei.shape$estimator = c("mcp", "mcp", "kde", "kde", "locoh")
+
+rude.1 = hr_isopleths(nest.ubin.hr[[5]][[4]])
+rude.2 = hr_isopleths(nest.ubin.hr[[6]][[4]])
+rude.3 = hr_isopleths(nest.ubin.hr[[7]][[4]])
+rude.shape = rbind(rude.1, rude.2, rude.3)
+rude.shape$dog = "rude"
+rude.shape$estimator = c("mcp", "mcp", "kde", "kde", "locoh")
+
+ubin.shapes = rbind(comet.shape, wang.shape, mei.shape, rude.shape)
+
+```
+
+```{r plotting ubin.shapes}
+ubin = brick()
+ubin.sf = st_read(file.choose()) # get shapefile
+
+ubin.95 = ubin.shapes %>%
+  filter(estimator == "locoh") 
+ubin.95$dog = as.factor(ubin.95$dog)
+
+plot(ubin$habitat)
+plot(ubin.95, add = T, fill = NA)
+
+ggplot() + 
+  geom_sf(data = ubin.sf, aes(fill = habitat)) + 
+  geom_sf(data = ubin.95, aes(fill = "red")) +
+  facet_wrap(dog ~.) + 
+  theme_classic()
+```
+

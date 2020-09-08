@@ -1,0 +1,5 @@
+## Introduction
+
+All resident mammals restrict their movements to fairly well-defined areas instead of wandering randomly, and thus the concept of a home range, as an area routinely used by an animal to meet its daily needs, serves as a useful concept for studying animal behavior (Burt 1943; Powell 2012)
+
+Animal tracking is still in its early stages (Kays et al. 2015), standards for tracking data are still in flux (Campbell et al. 2016), and new methods are constantly being developed. As wildlife biology enters an era of big data, a coherent, scriptable and reproducible workflow is needed to ensure reproducibility of results (Lewis, Vander Wal, and Fifield 2018; Archmiller et al. 2020), and a standardized, tidy implementation of home-range estimators should help facilitate that vision. @signerFreshLookOld2020

@@ -1,0 +1,11 @@
+---
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+## Results
+
+1. Overall HR sizes between sites: MCP + KDE
+2. HR sizes between sexes: MCP + KDE
+3. HR area size plots over 24h: MCP + KDE
+4. 

@@ -1,0 +1,25 @@
+[general]
+creator=R package 'raster'
+created=2020-07-16 11:00:38
+[georeference]
+nrows=728
+ncols=906
+xmin=355891.57941612
+ymin=157134.165962479
+xmax=360421.57941612
+ymax=160774.165962479
+projection=NA
+[data]
+datatype=FLT4S
+byteorder=little
+nbands=5
+bandorder=BIL
+minvalue=1:0:0:388945.04550774:0
+maxvalue=8:1923.34344306991:2523.21719239545:394555.715951913:1929.30687035526
+nodatavalue=-3.4e+38
+[legend]
+legendtype=
+values=
+color=
+[description]
+layername=habitat:dist.tracks:dist.coast:dist.feed:dist.urban
