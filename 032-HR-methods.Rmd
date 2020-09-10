@@ -213,7 +213,6 @@ ggplot() +
 
 
 ```{r ubin dog-specific shapes}
-
 # Ubin plots
 ubin.tr = sites.tr %>% 
   filter(site == "ubin")
@@ -260,7 +259,7 @@ ubin.shapes = rbind(comet.shape, wang.shape, mei.shape, rude.shape)
 ```
 
 ```{r plotting ubin.shapes}
-ubin = brick()
+ubin = brick("2020-07-08_ubin_raster.grd")
 ubin.sf = st_read(file.choose()) # get shapefile
 
 ubin.95 = ubin.shapes %>%
@@ -278,8 +277,37 @@ ggplot() +
 ```
 
 ```{r second-order habitat selection with locoh}
+# habitat selection based on locoh home range shape / size
+# Ubin
+# track > hr_locoh ) hr_isopleth > buffer > random_points > plot
+# extract covariates > plot?
+
+sbwr.hs = hr_locoh(sbwr.tr, n = ceiling(sqrt(nrow(sbwr.tr)))) # locoh of all dogs
+t = hr_isopleths(sbwr.hs) # shapefile of locoh
+
+nest.sbwr.h2 <- nest.sbwr.hr %>% # Convert to long format
+  dplyr::select(-data) %>%
+  pivot_longer(hr_mcp:hr_locoh, names_to = "estimator", values_to = "hr")
+
+nest.sbwr.h2.area <- nest.sbwr.h2 %>% # un-nest the data and get hr sizes
+mutate(hr_area = map(hr, hr_area)) %>%
+unnest(cols = hr_area)
+
+sbwr.avg.hr = nest.sbwr.h2.area %>% #find the average locoh area
+  filter(estimator =="hr_locoh") %>%
+  summarise(avg.hr = mean(area)/1000000) #in km^2, which is 0.322km^2
+
+sbwr.hs.buffer = t %>%
+  sf::st_buffer(dist = 322)
+
+ggplot() + 
+  geom_sf(data = sbwr.sf) + # maybe raster this ?
+  geom_sf(data = sbwr.hs.buffer, aes(fill = "red")) + 
+  geom_sf(data = t, aes(fill = "blue")) + 
+  theme_classic()
 
 
+ubin.avail.pts = random_points(ubin.hs2, n = 500)  
 ```
 
 
